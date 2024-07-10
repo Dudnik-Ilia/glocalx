@@ -2,14 +2,13 @@
 import itertools
 import json
 from copy import deepcopy
-from functools import reduce
-from math import floor
 
 from scipy.spatial.distance import euclidean
 from numpy import sign, argwhere, inf, array
 
 
-__all__ = ['Unit', 'Vector', 'Rule']
+# To be imported from file
+__all__ = ['Unit', 'Rule']
 
 
 class Unit:
@@ -35,63 +34,17 @@ class Unit:
         return None
 
 
-class Vector(Unit):
-    """Vector unit."""
-
-    def __init__(self, vector, position, distance=euclidean):
-        self.__vector = vector
-        self.__dimension = len(vector)
-        self.__position = position
-        self.__eval = distance
-
-    def __len__(self):
-        return self.__dimension
-
-    def __hash__(self):
-        return hash(self.__vector)
-
-    def __getitem__(self, item):
-        return self.__vector[item]
-
-    def __add__(self, other):
-        sum_ = self.__vector + other.__vector
-        return sum_
-
-    def __sub__(self, other):
-        sub_ = self.__vector - other.__vector
-        return sub_
-
-    def __mul__(self, other):
-        mul_ = self.__vector * other.__vector
-        return mul_
-
-    def __repr__(self):
-        return repr(self.__vector) + '\n' \
-               + repr(self.__dimension) + '\n' \
-               + repr(self.__position) + '\n'
-
-    def __str__(self):
-        return 'Vector: ' + repr(self.__vector) + '\n' \
-               + 'Dimensionality: ' + repr(self.__dimension) + '\n' \
-               + 'Position: ' + repr(self.__position) + '\n'
-
-    def predict(self, x):
-        return self.__eval(x, self.__vector)
-
-
 class Rule(Unit):
     """A_ logical rule in conjunctive form."""
 
     def __init__(self, premises=None, consequence=None, names=None):
         """
         Default rule with the given premises and consequence.
-
         Args:
-            premises (dict): Dictionary {feature -> premise} holding the premise for @feature. Defaults to the empty
-                                dictionary.
-            consequence (int): Outcome of the rule. Defaults to None.
-            names (list): Names of categorical variables. Set of sets, each set is a group of features on the same
-            variable.
+            premises (dict): Dictionary {feature -> premise} holding the premise for @feature.
+            consequence (int): Outcome of the rule.
+            names (list): Names of categorical variables. Set of sets,
+             each set is a group of features on the same variable.
         """
         self.features = set(premises.keys())
         self.premises = premises if premises is not None else dict()

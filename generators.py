@@ -102,7 +102,7 @@ class TrePanGenerator(Generator):
         Returns:
             numpy.ndarray: Samples in `samples` satisfying `rules`.
         """
-        evaluator = MemEvaluator(oracle=None)
+        evaluator = MemEvaluator(model_ai=None)
         coverage_matrix = evaluator.coverage(rules, samples)
         filtered_samples = samples[coverage_matrix.sum(axis=0) > 0]
 

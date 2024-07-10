@@ -50,20 +50,20 @@ class GLocalX:
     GLocalX instance. Aggregates local explanations into global ones.
 
     Attributes:
-        oracle (Predictor): The black box to explain
+        model_ai (Predictor): The black box to explain
         evaluator (MemEvaluator): Evaluator used to evaluate merges and distances
         fine_boundary (set): Explanation boundary
 
     """
 
-    oracle: Predictor
+    model_ai: Predictor
     evaluator: MemEvaluator
     fine_boundary: set
 
-    def __init__(self, oracle=None):
+    def __init__(self, model_ai=None):
         """"""
-        self.oracle = oracle
-        self.evaluator = MemEvaluator(oracle=self.oracle)
+        self.model_ai = model_ai
+        self.evaluator = MemEvaluator(model_ai=self.model_ai)
 
     @staticmethod
     def batch(y, sample_size=128):
@@ -143,7 +143,8 @@ class GLocalX:
 
     def accept_merge(self, union, merge, **kwargs):
         """
-        Decide whether to accept or reject the merge `merge`
+        Decide whether to accept or reject the merge `merge` using BIC
+        By deciding we compare union/merge
         Args:
             union (set): The explanations' union
             merge (set): The explanations' merge
@@ -309,7 +310,7 @@ class GLocalX:
 
         return AB
 
-    def fit(self, rules, tr_set, batch_size=128, global_direction=False,
+    def fit(self, rules, train_set, batch_size=128, global_direction=False,
             intersecting='coverage', strict_join=True, strict_cut=True,
             fidelity_weight=1., complexity_weight=1.,
             callbacks=None, callback_step=5,
@@ -318,7 +319,7 @@ class GLocalX:
         Train GLocalX on the given `rules`.
         Args:
             rules (list): List of rules.
-            tr_set (np.array): Training set (records).
+            train_set (np.array): Training set (records).
             batch_size (int): Batch size. Defaults to 128.
             global_direction (bool): False to compute the BIC on the data batch,
                                     True to compute it on the whole validation set.
@@ -347,16 +348,18 @@ class GLocalX:
         Returns:
             GLocalX: Returns this trained instance.
         """
-        x, y = tr_set[:, :-1], tr_set[:, -1]
-        if self.oracle is not None:
-            y = self.oracle.predict(tr_set[:, :-1]).round().astype(int).reshape(1, -1)
-            tr_set[:, -1] = y
+        x, y = train_set[:, :-1], train_set[:, -1]
+        if self.model_ai is not None:
+            y = self.model_ai.predict(train_set[:, :-1]).round().astype(int).reshape(1, -1)
+            train_set[:, -1] = y
 
         m = len(rules)
-        default = int(y.mean().round())
+        default_y = int(y.mean().round())
+        assert default_y in [0, 1], "y should be either 0 or 1, since it is only binary classification now"
+        # Put rules into set: rule--> theory(rule)
         input_rules = [{rule} for rule in rules]
+        # Boundary vector holds currently available theories
         boundary = input_rules
-        # The boundary vector holds the current currently available theories
         self.boundary = boundary
         boundary_len = len(self.boundary)
         self.fine_boundary = set(rules)
@@ -370,15 +373,19 @@ class GLocalX:
             logger.debug(full_name + ' | ************************ Iteration ' + str(iteration) + ' of ' + str(m))
             merged = False
 
-            # Update distance matrix
+            # Update distance matrix /// get product = each-each
             candidates_indices = [(i, j) for i, j in product(range(boundary_len), range(boundary_len))
                                   if j > i]
             logger.debug('Computing distances')
+
+            # For all pairs calculate distance
             distances = [(i, j, self.evaluator.distance(self.boundary[i], self.boundary[j], x))
                          for i, j in candidates_indices]
+
             logger.debug(full_name + '|  sorting candidates queue')
+            # Distances are sorted in increasing order
             candidates = sorted(distances, key=lambda c: c[2])
-            # No available candidates, distances go from 0 to 1
+            # No available candidates or the best (first) rule is not working at all
             if len(candidates) == 0 or candidates[0][-1] == 1:
                 break
 
@@ -388,9 +395,11 @@ class GLocalX:
             rejections = 0
             A, B, AB_union, AB_merge = None, None, None, None
             logger.debug(full_name + ' creating fine boundary')
+            # Take the union of all rules (which are {rule})
             self.fine_boundary = set(reduce(lambda b, a: a.union(b), self.boundary, set()))
             for candidate_nr, (i, j, distance) in enumerate(candidates):
                 A, B = self.boundary[i], self.boundary[j]
+                # Simple union of sets
                 AB_union = A | B
                 AB_merge = self.merge(A, B, x, y, ids=batch_ids, intersecting=intersecting,
                                       strict_cut=strict_cut, strict_join=strict_join)
@@ -398,7 +407,7 @@ class GLocalX:
                 # Boundary without the potentially merging theories
                 non_merging_boundary = [self.boundary[k] for k in range(boundary_len) if k != i and k != j]
 
-                if self.accept_merge(AB_union, AB_merge, data=tr_set, global_direction=global_direction,
+                if self.accept_merge(AB_union, AB_merge, data=train_set, global_direction=global_direction,
                                      non_merging_boundary=non_merging_boundary, fidelity_weight=fidelity_weight,
                                      complexity_weight=complexity_weight):
                     merged = True
@@ -428,7 +437,7 @@ class GLocalX:
 
                 for callback in callbacks:
                     # noinspection PyUnboundLocalVariable
-                    callback(self, iteration=iteration, x=x, y=y, default=default,
+                    callback(self, iteration=iteration, x=x, y=y, default=default_y,
                              callbacks_step=callback_step,
                              winner=(i, j),
                              nr_rules_union=nr_rules_union, nr_rules_merge=nr_rules_merge,
@@ -454,7 +463,7 @@ class GLocalX:
 
         return self
 
-    def rules(self, alpha=0.5, data=None, evaluator=None, is_percentile=False, strategy='fidelity'):
+    def get_fine_boundary_alpha(self, alpha=0.5, data=None, evaluator=None, is_percentile=False, strategy='fidelity'):
         """
         Return the fine boundary of this instance, filtered by `alpha`.
         Args:

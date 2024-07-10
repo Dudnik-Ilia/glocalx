@@ -40,7 +40,7 @@ def __print_log(glocalx, **kwargs):
     x, y, default = kwargs['x'], kwargs['y'], kwargs['default']
     boundary_size = kwargs['fine_boundary_size']
     m = kwargs['m']
-    model_fidelity = glocalx.evaluator.binary_fidelity_model(list(glocalx.rules(data=None)), x, y, default=default)
+    model_fidelity = glocalx.evaluator.binary_fidelity_model(list(glocalx.get_fine_boundary_alpha(data=None)), x, y, default=default)
     logger.info('\tName {0} | Iter {1}/{4} | Fidelity {2} | Boundary size {3}'.format(name, i, model_fidelity,
                                                                                             boundary_size, m))
 
@@ -83,7 +83,7 @@ def __full_log(glocalx, **kwargs):
     merge_mean_rules_len, merge_std_rules_len = kwargs['merge_mean_rules_len'], kwargs['merge_std_rules_len']
 
     # Model stats
-    model_fidelity = glocalx.evaluator.binary_fidelity_model(glocalx.rules(data=None), x, y, default=default)
+    model_fidelity = glocalx.evaluator.binary_fidelity_model(glocalx.get_fine_boundary_alpha(data=None), x, y, default=default)
     coverage_pct = (glocalx.evaluator.coverage(fine_boundary, x).sum(axis=0) > 0).sum() / x.shape[0]
 
     data = [i, winner_i, winner_j, rejections, bic_union, bic_merge,
@@ -119,7 +119,7 @@ def __final_rule_dump_callback(glocalx, **kwargs):
         **kwargs(Keyword arguments). Entries should be:
             winner_counts (dict): Winner counts dictionary.
     """
-    rules = [r.json() for r in glocalx.rules()]
+    rules = [r.json() for r in glocalx.get_fine_boundary_alpha()]
 
     with open(kwargs['name'] + '.rules.glocalx.alpha=None.json', 'w') as log:
         json.dump(rules, log)

@@ -55,19 +55,19 @@ tr_set = data.view(np_float).reshape(data.shape + (-1,))
 local_explanations = Rule.from_json('data/dummy/dummy_rules.json', names=features_names)
 
 # Create a GLocalX instance for `black_box`
-glocalx = GLocalX(oracle=black_box)
+glocalx = GLocalX(model_ai=black_box)
 # Fit the model, use batch_size=128 for larger datasets
 glocalx = glocalx.fit(local_explanations, tr_set, batch_size=2, name='black_box_explanations')
 
 # Retrieve global explanations by fidelity
 alpha = 0.5
-global_explanations = glocalx.rules(alpha, tr_set)
+global_explanations = glocalx.get_fine_boundary_alpha(alpha, tr_set)
 # Retrieve global explanations by fidelity percentile
 alpha = 95
-global_explanations = glocalx.rules(alpha, tr_set, is_percentile=True)
+global_explanations = glocalx.get_fine_boundary_alpha(alpha, tr_set, is_percentile=True)
 # Retrieve exactly `alpha` global explanations, `alpha/2` per class
 alpha = 10
-global_explanations = glocalx.rules(alpha, tr_set)
+global_explanations = glocalx.get_fine_boundary_alpha(alpha, tr_set)
 ```
 
 

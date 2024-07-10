@@ -88,13 +88,13 @@ def load_glocalx(rules, is_glocalx_run=False):
         if is_glocalx_run:
             run = load_run(rules)
             fine_boundary = run['rules']
-            glocalx = GLocalX(oracle=run['oracle'])
+            glocalx = GLocalX(model_ai=run['oracle'])
         else:
             fine_boundary = Rule.from_json(rules)
-            glocalx = GLocalX(oracle=None)
+            glocalx = GLocalX(model_ai=None)
     elif isinstance(rules, set) or isinstance(rules, list):
         fine_boundary = rules
-        glocalx = GLocalX(oracle=None)
+        glocalx = GLocalX(model_ai=None)
     else:
         raise ValueError('Not a str or set or list')
 

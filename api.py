@@ -193,7 +193,7 @@ def run(rules, tr, oracle=None, generate=None,
     n = len(rules)
     actual_callbacks_step = max(callbacks_step if isinstance(callbacks_step, int) else int(n * callbacks_step), n)
     logger.info('Merging...')
-    glocalx = GLocalX(oracle=oracle)
+    glocalx = GLocalX(model_ai=oracle)
     glocalx = glocalx.fit(rules, tr_set,
                           batch_size=batch_size if batch_size > 0 else tr_set.shape[0],
                           intersecting=intersecting, global_direction=global_direction,
@@ -203,7 +203,7 @@ def run(rules, tr, oracle=None, generate=None,
                           callbacks=[print_cb, full_cb, final_rule_dump_cb])
 
     logger.info('Storing output rules ' + name + '...')
-    output_rules = glocalx.rules(alpha, tr_set)
+    output_rules = glocalx.get_fine_boundary_alpha(alpha, tr_set)
 
     jsonized_rules = [rule.json() for rule in output_rules]
     with open(name + '.rules.glocalx.alpha=' + str(alpha) + '.json', 'w') as log:
