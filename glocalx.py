@@ -68,26 +68,26 @@ class GLocalX:
     @staticmethod
     def batch(y, sample_size=128):
         """
-        Sample `sample_size` objects from `x`.
-        Args:
-            y (np.array): Labels.
-            sample_size (int): Number of samples.
+        Sample several IDs (batch) from data. 
+        Target (y) is needed for stratification (equal proportion with respect to classes probas)
         Returns:
             numpy.np.array: Indices of the sampled data.
         """
-        idx_train, *rest = train_test_split(range(y.size), shuffle=True, stratify=y, train_size=sample_size)
+        train_idx, *rest = train_test_split(range(y.size), shuffle=True, stratify=y, train_size=sample_size)
 
-        return idx_train
+        return train_idx
 
-    def partition(self, A, B, record=None, intersecting='coverage'):
+    def partition(self, A, B, record_id=None, intersecting='coverage'):
         """
         Find the conflicting, non-conflicting and disjoint groups between ruleset `A` and `B`.
+        Conflicting = Mappings like: Rule from A --> all rules from B that have conflict (intersection)
+        Non-conflicting = Mappings like: Rule from A --> all rules from B that do not conflict (intersection exists, but result the same)
+        Disjoint = non-intersecting theories (covering different samples)
         Args:
             A (list): List of rules.
             B (list): List of rules.
             record (int): Id of the record, if not None.
-            intersecting (str): If 'coverage', rules are going to overlap if they cover at least
-                                one record in common.
+            intersecting (str): If 'coverage', rules are going to overlap if they cover at least one record in common.
                                 If 'polyhedra', rules are going to overlap if their premises do.
         Returns:
             tuple: Conflicting groups, non-conflicting groups, disjoint groups.
@@ -95,44 +95,47 @@ class GLocalX:
         conflicting_groups = list()
         non_conflicting_groups = list()
         disjoint_A, disjoint_B = {a for a in A}, {b for b in B}
-        for i, a in enumerate(A):
-            coverage_a = self.evaluator.coverages[a] if record is None\
-                                                    else self.evaluator.coverages[a][record]
+        # Go through all rules in A
+        for _, a in enumerate(A):
+            coverage_a = self.evaluator.coverages[a] if record_id is None\
+                                                    else self.evaluator.coverages[a][record_id]
+            # For rule from A all conflicting rules from B
             conflicting_a = set()
             non_conflicting_a = set()
-
-            for j, b in enumerate(B):
-                coverage_b = self.evaluator.coverages[b] if record is None\
-                                                        else self.evaluator.coverages[b][record]
-
+            
+            # Go through all rules in B
+            for _, b in enumerate(B):
+                coverage_b = self.evaluator.coverages[b] if record_id is None\
+                                                        else self.evaluator.coverages[b][record_id]
+                # Get from Memoization the result
                 if (a, b) in self.evaluator.intersecting:
                     a_intersecting_b = self.evaluator.intersecting[(a, b)]
                 elif (b, a) in self.evaluator.intersecting:
                     a_intersecting_b = self.evaluator.intersecting[(b, a)]
-                elif not ((b, a) in self.evaluator.intersecting or (a, b) in self.evaluator.intersecting):
+                # Calculate intersaction manually
+                else:
+                    assert not ((b, a) in self.evaluator.intersecting or (a, b) in self.evaluator.intersecting), "Check that we don't have intersections saved"
                     if intersecting == 'coverage':
+                        # If a and b has AT LEAST one sample they cover IN COMMON
                         a_intersecting_b = (np.logical_and(coverage_a, coverage_b)).any()
                     else:
                         a_intersecting_b = a & b
+                    # Memorize results
                     self.evaluator.intersecting[(a, b)] = a_intersecting_b
                     self.evaluator.intersecting[(b, a)] = a_intersecting_b
-                else:
-                    a_intersecting_b = False
 
                 if a_intersecting_b:
                     # Different consequence: conflicting
                     if a.consequence != b.consequence:
                         conflicting_a.add(a)
                         conflicting_a.add(b)
-                        disjoint_A = disjoint_A - {a}
-                        disjoint_B = disjoint_B - {b}
-
                     # Same consequence: non-conflicting
                     elif a.consequence == b.consequence:
                         non_conflicting_a.add(a)
                         non_conflicting_a.add(b)
-                        disjoint_A = disjoint_A - {a}
-                        disjoint_B = disjoint_B - {b}
+                    # Take a and b away from disjoint
+                    disjoint_A = disjoint_A - {a}
+                    disjoint_B = disjoint_B - {b}
 
             conflicting_groups.append(conflicting_a)
             non_conflicting_groups.append(non_conflicting_a)
@@ -144,18 +147,16 @@ class GLocalX:
     def accept_merge(self, union, merge, **kwargs):
         """
         Decide whether to accept or reject the merge `merge` using BIC
-        By deciding we compare union/merge
+          == compare union (of theories) with merge (of theories)
         Args:
             union (set): The explanations' union
             merge (set): The explanations' merge
-            **kwargs: Additional keyword arguments.
-
+            **kwargs: weights for BIC and boundary for global calculation
         Returns:
-            bool: True to accept, False otherwise
+            bool: accept merge?
         """
         data = kwargs['data']
         fidelity_weight, complexity_weight = kwargs['fidelity_weight'], kwargs['complexity_weight']
-        non_merging_boundary = kwargs['non_merging_boundary']
 
         # BIC computation
         bic_union = self.evaluator.bic(union, data,
@@ -163,12 +164,18 @@ class GLocalX:
         bic_merge = self.evaluator.bic(merge, data,
                                        fidelity_weight=fidelity_weight, complexity_weight=complexity_weight)
         bic_union_validation, bic_merge_validation = bic_union, bic_merge
+        
+        # By default it is false --> enough to compare on the batch
         if kwargs['global_direction']:
+            
+            non_merging_boundary = kwargs['non_merging_boundary']
             union_boundary = set(reduce(lambda b, a: a.union(b), [union] + non_merging_boundary, set()))
             merge_boundary = set(reduce(lambda b, a: a.union(b), [merge] + non_merging_boundary, set()))
 
-            bic_union_global = self.evaluator.bic(union_boundary, data)
-            bic_merge_global = self.evaluator.bic(merge_boundary, data)
+            bic_union_global = self.evaluator.bic(union_boundary, data,
+                                       fidelity_weight=fidelity_weight, complexity_weight=complexity_weight)
+            bic_merge_global = self.evaluator.bic(merge_boundary, data,
+                                       fidelity_weight=fidelity_weight, complexity_weight=complexity_weight)
 
             bic_union_validation, bic_merge_validation = bic_union_global, bic_merge_global
 
@@ -223,12 +230,7 @@ class GLocalX:
             rules (iterable): List of sets of conflicting groups.
             x (np.array): Data.
             y (np.array): Labels.
-            strict_join (bool): If True, join is less stringent: only features on both rules
-                                    are merged, others are removed
-                                    If False, join is less stringent: features on both rules are merged.
-                                    If a feature is present only in one rule, it will be present as-is
-                                    in the resulting join.
-                                    Defaults to True.
+            strict_join (bool): False -> joined premises would contain non-shared features
         Returns:
             set: List of rules with minimized conflict.
         """
@@ -276,15 +278,12 @@ class GLocalX:
             x (np.array): Data.
             y (np.array): Labels.
             ids (iterable): Ids of the records.
-            intersecting (str): If 'coverage', rules are going to overlap if they cover at least
-                                one record in common.
+            intersecting (str): If 'coverage', rules are going to overlap if they cover at least one record in common.
                                 If 'polyhedra', rules are going to overlap if their premises do.
-            strict_join (bool): If True, join is less stringent: only features on both rules
-                                    are merged, others are removed
-                                    If False, join is less stringent: features on both rules are merged.
-                                    If a feature is present only in one rule, it will be present as-is
-                                    in the resulting join.
-                                    Defaults to True.
+            strict_join (bool): If True, join is less stringent: only features on both rules are merged, others are removed
+                                If False, join is less stringent: features on both rules are merged.
+                                If a feature is present only in one rule, it will be present as-is in the resulting join.
+                                Defaults to True.
             strict_cut (bool): If True, the dominant rule cuts the non-dominant rules on all features.
                                 If False, the dominant rule cuts the non-dominant rules only on shared features.
                                 Defaults to True.
@@ -294,83 +293,87 @@ class GLocalX:
         AB = set()
         A_, B_ = list(A), list(B)
 
-        # Compute the disjoint group and add it to AB
+        # Compute the disjoint group: rules from A and B that have no intersections at all
         _, _, disjoint_group = self.partition(A_, B_, ids)
+        disjoint_group_save = disjoint_group.copy()
+        # For each sample in batch, calculate:
         for record in ids:
+            # Conflicting+non-conflicting rules on that sample
             conflicting_group, non_conflicting_group, _ = self.partition(A_, B_, record, intersecting)
+            # Take first group (Set of 1st rule A with all rules B that conflict); see self.partition
             conflicting_group, non_conflicting_group = conflicting_group[0], non_conflicting_group[0]
+            # What is the point of it, the disjoint should already not contain intersecting rules?
             disjoint_group = disjoint_group - conflicting_group - non_conflicting_group
 
+            # Cut the conflincting
             cut_rules = self._cut(conflicting_group, x, y, strict_cut)
+            # Join the non-conflicting
             joined_rules = self._join(non_conflicting_group, x, y, strict_join)
+            # Add them to the Merged rules
             AB |= joined_rules
             AB |= cut_rules
+
+        assert disjoint_group == disjoint_group_save, "this is the check to make sure that there is not sense in above line"
 
         AB |= disjoint_group
 
         return AB
 
-    def fit(self, rules, train_set, batch_size=128, global_direction=False,
-            intersecting='coverage', strict_join=True, strict_cut=True,
-            fidelity_weight=1., complexity_weight=1.,
-            callbacks=None, callback_step=5,
-            name=None, pickle_this=False):
+    def fit(self, rules: list, train_set: np.array,
+            batch_size=128, global_direction=False, intersecting='coverage', strict_join=True, 
+            strict_cut=True, fidelity_weight=1., complexity_weight=1.,
+            callbacks=None, callback_step=5, name=None, pickle_this=False):
         """
-        Train GLocalX on the given `rules`.
+        'Train' GLocalX on the given `rules`: given rules, merge them until we find a good (BIC) replace for the model (self.model -- train_set: x,y)
+        The result would be stored in self.fine_boundary (union of all theories)
         Args:
             rules (list): List of rules.
-            train_set (np.array): Training set (records).
-            batch_size (int): Batch size. Defaults to 128.
-            global_direction (bool): False to compute the BIC on the data batch,
-                                    True to compute it on the whole validation set.
-                                    Defaults to False.
-            intersecting (str): If 'coverage', rules are going to overlap if they cover at least
-                                one record in common.
-                                If 'polyhedra', rules are going to overlap if their premises do.
-            strict_join (bool): If True, join is less stringent: only features on both rules
-                                    are merged, others are removed
-                                    If False, join is less stringent: features on both rules are merged.
-                                    If a feature is present only in one rule, it will be present as-is
-                                    in the resulting join.
-                                    Defaults to True.
-            strict_cut (bool): If True, the dominant rule cuts the non-dominant rules on all features.
-                                If False, the dominant rule cuts the non-dominant rules only on shared features.
-                                Defaults to True.
-            callbacks (list): List of callbacks to use. Defaults to the empty list.
-            fidelity_weight (float): Weight to fidelity_weight (BIC-wise). Defaults to 1 (no weight).
-            complexity_weight (float): Weight to complexity_weight (BIC-wise). Defaults to 1 (no weight).
-            callback_step (Union(int, float)): Evoke the callbacks every `callback_step` iterations.
-                                                Use float in [0, 1] to use percentage or an integer.
-                                                Defaults to 5.
-            name (str): Name of this run for logging purposes. Defaults to None.
+            train_set (np.array): Training set (samples), where last column is labels (y).
+            batch_size (int): Batch size.
+            global_direction (bool): False - compute BIC on the data batch,
+                                    True - whole validation set.
+            intersecting (str): 'coverage' (usual), rules overlap if they cover at least one record in common.
+                                'polyhedra', rules overlap if their premises do.
+            strict_join (bool): True (usual), only shared features (on both rules) are joined
+                                False, joined premises would contain non-shared features
+            strict_cut (bool): True (usual), the dominant rule cuts the non-dominant rules on all features.
+                                False, the dominant rule cuts the non-dominant rules only on shared features.
+            callbacks (list): List of callbacks to use.
+            fidelity_weight (float): Weight to fidelity_weight (BIC-wise).
+            complexity_weight (float): Weight to complexity_weight (BIC-wise).
+            callback_step (Union(int, float)): Evoke the callbacks every `callback_step` iterations, percentage or int.
+            name (str): Name of this run for logging purposes.
             pickle_this (bool): Whether to dump a pickle for this instance as the training finishes.
-                                Defaults to False.
         Returns:
-            GLocalX: Returns this trained instance.
+            GLocalX: Returns this trained instance (with self.boundary and self.fine_boundary)
         """
-        x, y = train_set[:, :-1], train_set[:, -1]
-        if self.model_ai is not None:
-            y = self.model_ai.predict(train_set[:, :-1]).round().astype(int).reshape(1, -1)
-            train_set[:, -1] = y
 
-        m = len(rules)
+        x, y = train_set[:, :-1], train_set[:, -1]
+        if self.model_ai:
+            # Calculate labels using model (if given)
+            y = self.model_ai.predict(x).round().astype(int).reshape(1, -1)
+            train_set[:, -1] = y
+            
+        num_rules = len(rules)
         default_y = int(y.mean().round())
         assert default_y in [0, 1], "y should be either 0 or 1, since it is only binary classification now"
-        # Put rules into set: rule--> theory(rule)
-        input_rules = [{rule} for rule in rules]
-        # Boundary vector holds currently available theories
-        boundary = input_rules
-        self.boundary = boundary
-        boundary_len = len(self.boundary)
-        self.fine_boundary = set(rules)
-        full_name = name if name is not None else 'Anonymous run'
 
-        # Merge
-        iteration = 0
-        merged = False
-        rejections_list = list()
-        while len(self.boundary) > 2 and (merged or iteration == 0):
-            logger.debug(full_name + ' | ************************ Iteration ' + str(iteration) + ' of ' + str(m))
+        # Put rules into standalone theories (set)
+        rules = [{rule} for rule in rules]
+
+        # Boundary vector == theories
+        self.boundary = rules
+        boundary_len = len(self.boundary)
+
+        # Take the union of all theories (which are {rule} at the start)
+        self.fine_boundary = set(reduce(lambda b, a: a.union(b), self.boundary, set()))
+
+        full_name = name if name is not None else 'Test run'
+        iteration = 1
+        merged = True # to start looping
+
+        while len(self.boundary) > 2 and merged:
+            logger.debug(full_name + ' | ************************ Iteration ' + str(iteration) + ' with num of theories: ' + str(boundary_len))
             merged = False
 
             # Update distance matrix /// get product = each-each
@@ -385,69 +388,83 @@ class GLocalX:
             logger.debug(full_name + '|  sorting candidates queue')
             # Distances are sorted in increasing order
             candidates = sorted(distances, key=lambda c: c[2])
-            # No available candidates or the best (first) rule is not working at all
+            
+            # No available candidates or the best (first) rule is not working at all --> stop algorithm
             if len(candidates) == 0 or candidates[0][-1] == 1:
                 break
 
             # Sample a data batch
-            batch_ids = GLocalX.batch(y.squeeze(), sample_size=batch_size)
-            # Explore candidates
-            rejections = 0
-            A, B, AB_union, AB_merge = None, None, None, None
+            batch_ids = GLocalX.batch(y.squeeze(), batch_size)
+
+            # Rejections of merge candidates (for logging only)
+            rejections_of_merges = 0
             logger.debug(full_name + ' creating fine boundary')
+
             # Take the union of all rules (which are {rule})
             self.fine_boundary = set(reduce(lambda b, a: a.union(b), self.boundary, set()))
-            for candidate_nr, (i, j, distance) in enumerate(candidates):
+
+            # Explore candidates
+            for i, j, _ in candidates:
+                # Take candidate theories A and B
                 A, B = self.boundary[i], self.boundary[j]
-                # Simple union of sets
-                AB_union = A | B
+                AB_union = A | B # Simple union of sets
+
                 AB_merge = self.merge(A, B, x, y, ids=batch_ids, intersecting=intersecting,
                                       strict_cut=strict_cut, strict_join=strict_join)
-                logger.debug(full_name + ' merged candidate ' + str(rejections))
-                # Boundary without the potentially merging theories
+                
+                logger.debug(full_name + ' merged candidate ' + str(rejections_of_merges))
+
+                # All other theories except A and B
                 non_merging_boundary = [self.boundary[k] for k in range(boundary_len) if k != i and k != j]
 
+                # Check if the merge is good
                 if self.accept_merge(AB_union, AB_merge, data=train_set, global_direction=global_direction,
                                      non_merging_boundary=non_merging_boundary, fidelity_weight=fidelity_weight,
                                      complexity_weight=complexity_weight):
                     merged = True
-                    rejections_list.append(rejections)
-                    logger.debug(full_name + ' Merged candidate ' + str(rejections))
-                    # Boundary update: the merging theories are removed and the merged theory is inserted
+                    logger.debug(full_name + ' Merged candidate')
+
+                    # Boundary update: merged + rest (untouched in this iter)
                     self.boundary = [AB_merge] + non_merging_boundary
                     boundary_len -= 1
+                    assert boundary_len == len(self.boundary), "lengths are different"
+                    
+                    # Recalculating union of all theories
                     self.fine_boundary = set(reduce(lambda b, a: a.union(b), self.boundary, set()))
 
+                    # Stop exploring candidates, go for the next merge
                     break
                 else:
-                    rejections += 1
+                    rejections_of_merges += 1
+                    logger.debug(full_name + "| Rejected merge, cnt: "+ str(rejections_of_merges))
 
             # Callbacks
-            if (iteration + 1) % callback_step == 0 and merged and callbacks is not None:
-                logger.debug(full_name + ' Callbacks... ')
-                nr_rules_union, nr_rules_merge = len(AB_union), len(AB_merge)
-                coverage_union = self.evaluator.coverage(AB_union, x, ids=batch_ids)
-                coverage_merge = self.evaluator.coverage(AB_merge, x, ids=batch_ids)
-                union_mean_rules_len = np.mean([len(r) for r in AB_union])
-                union_std_rules_len = np.std([len(r) for r in AB_union])
-                merge_mean_rules_len = np.mean([len(r) for r in AB_merge])
-                merge_std_rules_len = np.std([len(r) for r in AB_merge])
-                self.fine_boundary = set(reduce(lambda b, a: a.union(b), self.boundary, set()))
-                fine_boundary_size = len(self.fine_boundary)
+            if callbacks:
+                if iteration % callback_step == 0 and merged:
+                    logger.debug(full_name + ' Callbacks... ')
+                    nr_rules_union, nr_rules_merge = len(AB_union), len(AB_merge)
+                    coverage_union = self.evaluator.coverage(AB_union, x, ids=batch_ids)
+                    coverage_merge = self.evaluator.coverage(AB_merge, x, ids=batch_ids)
+                    union_mean_rules_len = np.mean([len(r) for r in AB_union])
+                    union_std_rules_len = np.std([len(r) for r in AB_union])
+                    merge_mean_rules_len = np.mean([len(r) for r in AB_merge])
+                    merge_std_rules_len = np.std([len(r) for r in AB_merge])
+                    self.fine_boundary = set(reduce(lambda b, a: a.union(b), self.boundary, set()))
+                    fine_boundary_size = len(self.fine_boundary)
 
-                for callback in callbacks:
-                    # noinspection PyUnboundLocalVariable
-                    callback(self, iteration=iteration, x=x, y=y, default=default_y,
-                             callbacks_step=callback_step,
-                             winner=(i, j),
-                             nr_rules_union=nr_rules_union, nr_rules_merge=nr_rules_merge,
-                             coverage_union=coverage_union, coverage_merge=coverage_merge,
-                             fine_boundary=self.fine_boundary, m=m,
-                             union_mean_rules_len=union_mean_rules_len, merge_mean_rules_len=merge_mean_rules_len,
-                             union_std_rules_len=union_std_rules_len, merge_std_rules_len=merge_std_rules_len,
-                             fine_boundary_size=fine_boundary_size, merged=merged,
-                             name=full_name,
-                             rejections=rejections)
+                    for callback in callbacks:
+                        # noinspection PyUnboundLocalVariable
+                        callback(self, iteration=iteration, x=x, y=y, default=default_y,
+                                callbacks_step=callback_step,
+                                winner=(i, j),
+                                nr_rules_union=nr_rules_union, nr_rules_merge=nr_rules_merge,
+                                coverage_union=coverage_union, coverage_merge=coverage_merge,
+                                fine_boundary=self.fine_boundary, m=num_rules,
+                                union_mean_rules_len=union_mean_rules_len, merge_mean_rules_len=merge_mean_rules_len,
+                                union_std_rules_len=union_std_rules_len, merge_std_rules_len=merge_std_rules_len,
+                                fine_boundary_size=fine_boundary_size, merged=merged,
+                                name=full_name,
+                                rejections=rejections_of_merges)
 
             # Iteration update
             iteration += 1

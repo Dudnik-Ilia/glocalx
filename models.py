@@ -117,14 +117,14 @@ class Rule(Unit):
         return rule_len
 
     def __repr__(self):
-        return str(self.premises) + '\n' + str(self.consequence)
+        return str(self.premises) + '-> ' + str(self.consequence)
 
     def __str__(self):
         str_ = '{\n'
         for k in sorted(self.features):
             feature_name = self.names[k]
             str_ = str_ + '\t' + feature_name + ': ' + str(self.premises[k]) + '\n'
-        str_ += '\n\tlabel: ' + str(self.consequence) + '\n'
+        str_ += '\n\t-> ' + str(self.consequence) + '\n'
         str_ += '}\n'
 
         return str_
