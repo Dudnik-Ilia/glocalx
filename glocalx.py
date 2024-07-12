@@ -480,60 +480,67 @@ class GLocalX:
 
         return self
 
-    def get_fine_boundary_alpha(self, alpha=0.5, data=None, evaluator=None, is_percentile=False, strategy='fidelity'):
+    def get_fine_boundary_alpha(self, alpha=0.5, data=None, evaluator=None, strategy='fidelity'):
         """
-        Return the fine boundary of this instance, filtered by `alpha`.
+        Return the fine boundary of this instance, filtered by `alpha` pruning coef.
         Args:
-            alpha (Union(float | int)): Pruning factor, set to None for no pruning. Defaults to 0.5.
-                                        For pruning use a float in [0, 1]. For np.percentile
-                                        pruning use a float in [0, 1] and set `np.percentile` to True.
-                                        For a number of rules, use a positive int.
-            data (np.array): Data (labels included).
-            evaluator (Evaluator): Evaluator to use to prune, if any. None otherwise. Defaults to None.
-            is_percentile (bool): Whether alpha is a np.percentile or a fidelity/coverage value.
-            strategy (str): Rule selection strategy, if any. Defaults to selecting rules by fidelity
-                            (select='fidelity'). Can also use coverage (select='coverage')
+            alpha (Union(float | int)): None -> no pruning.
+                                        Float (percentage) or int (num of rules)
+            data (np.array): x+y(in last column).
+            evaluator (Evaluator): Evaluator to use to prune, if any.
+            strategy (str): Rule selection strategy ['fidelity','coverage']
         Returns:
-            list: Fine boundary after a fit.
+            list: Fine boundary after pruning.
         """
+
+        # Take evaluator from GlocalX instance
         if evaluator is None:
-            evaluator_ = self.evaluator
-        else:
-            evaluator_ = evaluator
+            evaluator = self.evaluator
 
         fine_boundary = self.fine_boundary
 
         if data is None:
+            # Nothing to filter with respect to
             return fine_boundary
-        elif alpha is not None and len(fine_boundary) > 0:
-            x, y = data[:, :-1], data[:, -1].astype(int)
-            default = int(y.mean().round())
-            rules_0 = [r for r in fine_boundary if r.consequence == 0]
-            rules_1 = [r for r in fine_boundary if r.consequence == 1]
-            if strategy == 'fidelity':
-                values_0 = [evaluator_.binary_fidelity(rule, x, y, default=default) for rule in rules_0]
-                values_1 = [evaluator_.binary_fidelity(rule, x, y, default=default) for rule in rules_1]
-            elif strategy == 'coverage':
-                values_0 = [evaluator_.coverage(rule, x) for rule in rules_0]
-                values_1 = [evaluator_.coverage(rule, x) for rule in rules_1]
-            else:
-                raise ValueError("Unknown strategy: " + str(strategy) + ". Use either 'fidelity' (default) or"
-                                                                        "'coverage'.")
-            if is_percentile:
-                lower_bound_0 = np.percentile(list(set(values_0)), alpha) if is_percentile else alpha
-                lower_bound_1 = np.percentile(list(set(values_1)), alpha) if is_percentile else alpha
+        
+        assert alpha is not None and len(fine_boundary) > 0
 
-                fine_boundary_0 = [rule for rule, val in zip(rules_0, values_0) if val >= lower_bound_0]
-                fine_boundary_1 = [rule for rule, val in zip(rules_1, values_1) if val >= lower_bound_1]
-            elif isinstance(alpha, int):
-                fine_boundary_0 = sorted(zip(rules_0, values_0), key=lambda el: el[1])[-alpha // 2:]
-                fine_boundary_1 = sorted(zip(rules_1, values_1), key=lambda el: el[1])[-alpha // 2:]
-                fine_boundary_0 = [rule for rule, _ in fine_boundary_0]
-                fine_boundary_1 = [rule for rule, _ in fine_boundary_1]
-            else:
-                fine_boundary_0 = [rule for rule, val in zip(rules_0, values_0) if val >= alpha]
-                fine_boundary_1 = [rule for rule, val in zip(rules_1, values_1) if val >= alpha]
+        is_percentile = isinstance(alpha, float)
 
-            return fine_boundary_0 + fine_boundary_1
+        x, y = data[:, :-1], data[:, -1].astype(int)
+        default_y = int(y.mean().round())
 
-        return None
+        assert default_y in [0,1], "should be a binary classification task"
+
+        # Sort rules by consequence: 
+        # division is needed for the percentage calculation on each of them independently
+        rules_0 = [r for r in fine_boundary if r.consequence == 0]
+        rules_1 = [r for r in fine_boundary if r.consequence == 1]
+
+        if strategy == 'fidelity':
+            values_0 = [evaluator.binary_fidelity(rule, x, y, default=default_y) for rule in rules_0]
+            values_1 = [evaluator.binary_fidelity(rule, x, y, default=default_y) for rule in rules_1]
+        elif strategy == 'coverage':
+            values_0 = [evaluator.coverage(rule, x) for rule in rules_0]
+            values_1 = [evaluator.coverage(rule, x) for rule in rules_1]
+        else:
+            raise ValueError("Unknown strategy: " + str(strategy) + ". Use either 'fidelity' (default) or"
+                                                                    "'coverage'.")
+        
+        # If percent -> take above this percentage
+        if is_percentile:
+            lower_bound_0 = np.percentile(list(set(values_0)), alpha)
+            lower_bound_1 = np.percentile(list(set(values_1)), alpha)
+
+            fine_boundary_0 = [rule for rule, val in zip(rules_0, values_0) if val >= lower_bound_0]
+            fine_boundary_1 = [rule for rule, val in zip(rules_1, values_1) if val >= lower_bound_1]
+
+        # If int, take top 'alpha' rules
+        else:
+            assert isinstance(alpha, int)
+            fine_boundary_0 = sorted(zip(rules_0, values_0), key=lambda i: i[1])[-alpha // 2:]
+            fine_boundary_1 = sorted(zip(rules_1, values_1), key=lambda i: i[1])[-alpha // 2:]
+            fine_boundary_0 = [rule for rule, _ in fine_boundary_0]
+            fine_boundary_1 = [rule for rule, _ in fine_boundary_1]
+
+        return fine_boundary_0 + fine_boundary_1
