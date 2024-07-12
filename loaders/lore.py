@@ -1,6 +1,6 @@
 import json
 from numpy import inf
-from models import Rule
+from rule import Rule
 
 def lore_to_glocalx(json_file, info_file):
     """Load file `json_file` and `info_file` and return the loaded JSON

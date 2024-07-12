@@ -4,7 +4,7 @@
 import numpy as np
 
 from evaluators import MemEvaluator
-from models import Rule
+from rule import Rule
 from utilities.coverage_utilities import coverage_matrix
 
 

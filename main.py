@@ -3,10 +3,10 @@ import numpy as np
 import logzero
 
 from glocalx import GLocalX, shut_up_tensorflow
-from models import Rule
+from rule import Rule
 
 # Set log profile: INFO for normal logging, DEBUG for verbosity
-logzero.loglevel(logzero.logging.INFO)
+logzero.loglevel(logzero.logging.DEBUG)
 shut_up_tensorflow()
 
 # Load black box: optional! Use black_box = None to use the dataset labels
@@ -30,8 +30,8 @@ glocalx = glocalx.fit(local_explanations, tr_set, batch_size=2, name='black_box_
 alpha = 0.5
 global_explanations = glocalx.get_fine_boundary_alpha(alpha, tr_set)
 # Retrieve global explanations by fidelity percentile
-alpha = 95
-global_explanations = glocalx.get_fine_boundary_alpha(alpha, tr_set, is_percentile=True)
+alpha = 0.95
+global_explanations = glocalx.get_fine_boundary_alpha(alpha, tr_set)
 # Retrieve exactly `alpha` global explanations, `alpha/2` per class
 alpha = 10
 global_explanations = glocalx.get_fine_boundary_alpha(alpha, tr_set)

@@ -19,7 +19,7 @@ import numpy as np
 
 from evaluators import MemEvaluator
 from callbacks import final_rule_dump_cb as final_rule_dump_callback
-from models import Rule
+from rule import Rule
 
 
 class Predictor:

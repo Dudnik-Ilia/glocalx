@@ -1,6 +1,6 @@
 """
 Evaluation module providing basic metrics to run and analyze GLocalX's results.
-Two evaluators are provided, DummyEvaluator, which does not optimize performance,
+Two evaluators are provided, DummyEvaluator, which does not optimize performance (stored in base_evaluators),
 and MemEvaluator, which stores previously computed measures to speed-up performance.
 """
 from abc import abstractmethod
@@ -11,7 +11,7 @@ from scipy.spatial.distance import hamming
 from logzero import logger
 
 from base_classes.base_evaluators import Evaluator
-from models import Rule
+from rule import Rule
 from utilities.coverage_utilities import covers, coverage_matrix, binary_fidelity
 
 

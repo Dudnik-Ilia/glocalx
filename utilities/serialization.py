@@ -8,7 +8,7 @@ import json
 import os
 
 from glocalx import GLocalX
-from models import Rule
+from rule import Rule
 
 
 def load_run(run_file):

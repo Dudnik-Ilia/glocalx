@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.spatial.distance import hamming
 
-from models import Rule, Unit
+from rule import Rule, Unit
 
 
 def covers(rule: Rule, x: np.array):

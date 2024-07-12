@@ -19,7 +19,7 @@ from tensorflow.keras.models import load_model as load_tf_model
 
 from logzero import logger
 
-from models import Rule
+from rule import Rule
 
 
 @click.command()
