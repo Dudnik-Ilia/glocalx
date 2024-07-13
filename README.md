@@ -18,6 +18,16 @@ This rule describes the rationale followed given by an unexplainable model to gr
 
 Check the `main.py` for usage example.
 
+### Lore rules creation using LORE-ext library
+
+Script `./rule_loaders/lore_rule_generator.py` provides a functionality to create LORE rules. You can adjust the settings for rules calculation inside.
+
+You need to provide with: 
+- data (and preprocess it before it, check the ipynb for example)
+- trained model (black box), otherwise it will be trained from the data
+
+Then rules are stored in `./data/lore_rules`, which then are used for GlocalX (e.g. main.py)
+
 ### Command line interface
 
 You can invoke `GLocalX` from the api interface in `api.py`:
