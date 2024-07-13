@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.spatial.distance import hamming
 
-from rule import Rule, Unit
+from core.rule_glocalx import Rule, Unit
 
 
 def covers(rule: Rule, x: np.array):
@@ -32,6 +32,8 @@ def binary_fidelity(unit: Unit, x, y, evaluator=None, ids=None, default=np.nan):
     unit_predictions = np.array([unit.consequence
                                  for _ in range(x.shape[0] if ids is None else ids.shape[0])]).flatten()
     unit_predictions[~coverage] = default
+
+    y = y.squeeze()
 
     fidelity = 1 - hamming(unit_predictions, y[ids] if ids is not None else y) if len(y) > 0 else 0
 

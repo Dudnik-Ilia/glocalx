@@ -4,3 +4,6 @@ tensorflow
 scipy
 scikit-learn
 pandas
+seaborn
+tqdm
+LORE-ext

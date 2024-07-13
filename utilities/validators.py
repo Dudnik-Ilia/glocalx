@@ -3,8 +3,8 @@
 ########################
 import numpy as np
 
-from evaluators import MemEvaluator
-from rule import Rule
+from core.evaluators import MemEvaluator
+from core.rule_glocalx import Rule
 from utilities.coverage_utilities import coverage_matrix
 
 

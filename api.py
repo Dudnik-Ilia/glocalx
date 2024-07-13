@@ -5,9 +5,9 @@ import time
 import pickle
 import json
 
-from callbacks import print_cb, full_cb, final_rule_dump_cb
+from callbacks.callbacks import print_cb, full_cb, final_rule_dump_cb
 from glocalx import GLocalX
-from generators import TrePanGenerator, BudgedExhaustedException
+from core.generators import TrePanGenerator, BudgedExhaustedException
 
 # Shut up, tensorflow!
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -19,7 +19,7 @@ from tensorflow.keras.models import load_model as load_tf_model
 
 from logzero import logger
 
-from rule import Rule
+from core.rule_glocalx import Rule
 
 
 @click.command()

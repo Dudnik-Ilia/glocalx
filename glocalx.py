@@ -17,9 +17,9 @@ from sklearn.model_selection import train_test_split
 import tensorflow as tf
 import numpy as np
 
-from evaluators import MemEvaluator
-from callbacks import final_rule_dump_cb as final_rule_dump_callback
-from rule import Rule
+from core.evaluators import MemEvaluator
+from callbacks.callbacks import final_rule_dump_cb as final_rule_dump_callback
+from core.rule_glocalx import Rule
 
 
 class Predictor:
