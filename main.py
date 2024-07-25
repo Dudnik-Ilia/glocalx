@@ -32,7 +32,7 @@ df, feature_names, *_ = prepare_dataset(
 data = df.to_numpy()
 data = [list(sample) for sample in data]
 data = np.array(data)
-data
+
 # Load local explanations
 lore_rules_file = "lore_rules_adult_30"
 info_file = "adult_info"
@@ -45,10 +45,11 @@ glocalx = glocalx.fit(glocal_rules, data, batch_size=2, name='black_box_explanat
 
 # Retrieve global explanations by fidelity
 alpha = 0.5
-global_explanations = glocalx.get_fine_boundary_alpha(alpha, data)
+# global_explanations = glocalx.get_fine_boundary_alpha(alpha, data)
 # Retrieve global explanations by fidelity percentile
 alpha = 0.95
-global_explanations = glocalx.get_fine_boundary_alpha(alpha, data)
+# global_explanations = glocalx.get_fine_boundary_alpha(alpha, data)
 # Retrieve exactly `alpha` global explanations, `alpha/2` per class
 alpha = 10
 global_explanations = glocalx.get_fine_boundary_alpha(alpha, data)
+print(len(global_explanations))

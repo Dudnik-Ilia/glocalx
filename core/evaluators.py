@@ -110,26 +110,26 @@ class MemEvaluator(Evaluator):
 
         return diff
 
-    def binary_fidelity(self, unit, x, y, default=np.nan, ids=None):
-        """Evaluate the goodness of unit.
+    def binary_fidelity(self, rule, x, y, default=np.nan, ids=None):
+        """Evaluate the goodness of rule.
         Args:
-            unit (Unit): The unit to evaluate.
+            rule (Unit): The unit to evaluate.
             x (numpy.array): The data.
             y (numpy.array): The labels.
-            default (int): Default prediction for records not covered by the unit.
+            default (int): Default prediction for records not covered by the rule.
             ids (numpy.array): IDS of the given `x`, used to speed up evaluation.
         Returns:
-              float: The unit's fidelity_weight
+              float: The rule's fidelity_weight
         """
         if y is None:
             y = self.oracle.predict(x).round().squeeze()
 
         if ids is None:
-            self.binary_fidelities[unit] = self.binary_fidelities.get(unit, binary_fidelity(unit, x, y, self,
+            self.binary_fidelities[rule] = self.binary_fidelities.get(rule, binary_fidelity(rule, x, y, self,
                                                                                             default=default, ids=None))
-            fidelity = self.binary_fidelities[unit]
+            fidelity = self.binary_fidelities[rule]
         else:
-            fidelity = binary_fidelity(unit, x, y, self, default=default, ids=ids)
+            fidelity = binary_fidelity(rule, x, y, self, default=default, ids=ids)
 
         return fidelity
 
@@ -148,7 +148,7 @@ class MemEvaluator(Evaluator):
         if y is None:
             y = self.oracle.predict(x).squeeze().round()
 
-        scores = np.array([self.binary_fidelity(rule, x, y, default=default) for rule in units])
+        fidelities = np.array([self.binary_fidelity(rule, x, y, default=default) for rule in units])
         coverage = self.coverage(units, x)
 
         if len(units) == 0:
@@ -157,7 +157,7 @@ class MemEvaluator(Evaluator):
             rules_consequences = np.array([r.consequence for r in units])
             # Fast computation for k = 1
             if k == 1:
-                weighted_coverage_scores = coverage * scores.reshape(-1, 1)  # Coverage matrix weighted by score
+                weighted_coverage_scores = coverage * fidelities.reshape(-1, 1)  # Coverage matrix weighted by score
                 # Best score per row (i.e., record)
                 best_rule_per_record_idx = weighted_coverage_scores.argmax(axis=0).squeeze()
                 predictions = rules_consequences[best_rule_per_record_idx]
@@ -173,10 +173,10 @@ class MemEvaluator(Evaluator):
                     else:
                         companions_0 = record_coverage[rules_consequences[record_coverage] == 0]
                         companions_1 = record_coverage[rules_consequences[record_coverage] == 1]
-                        scores_0 = scores[companions_0]
-                        scores_1 = scores[companions_1]
-                        np.argsort_scores_0 = np.flip(np.argsort(scores[companions_0])[-k:])
-                        np.argsort_scores_1 = np.flip(np.argsort(scores[companions_1])[-k:])
+                        scores_0 = fidelities[companions_0]
+                        scores_1 = fidelities[companions_1]
+                        np.argsort_scores_0 = np.flip(np.argsort(fidelities[companions_0])[-k:])
+                        np.argsort_scores_1 = np.flip(np.argsort(fidelities[companions_1])[-k:])
                         top_scores_0 = scores_0[np.argsort_scores_0]
                         top_scores_1 = scores_1[np.argsort_scores_1]
 

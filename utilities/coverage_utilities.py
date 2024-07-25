@@ -16,21 +16,24 @@ def covers(rule: Rule, x: np.array):
     return all([(x[feature] >= lower) & (x[feature] < upper)] for feature, (lower, upper) in rule)
 
 
-def binary_fidelity(unit: Unit, x, y, evaluator=None, ids=None, default=np.nan):
-    """Evaluate the goodness of unit.
+def binary_fidelity(rule: Unit, x, y, evaluator=None, ids=None, default=np.nan):
+    """Evaluate the goodness of rule: 1-hamming distance -> the higher the better
     Args:
-        unit (Unit): The unit to evaluate.
+        rule (Unit): The rule to evaluate.
         x (numpy.array): The data.
         y (numpy.array): The labels.
         evaluator (Evaluator): Optional evaluator to speed-up computation.
         ids (numpy.array): Unique identifiers to tell each element in @patterns apart.
-        default (int): Default prediction for records not covered by the unit.
+        default (int): Default prediction for records not covered by the rule.
     Returns:
-          float: The unit's fidelity_weight
+          float: The rule's fidelity_weight
     """
-    coverage = evaluator.coverage(unit, x, ids=ids).flatten()
-    unit_predictions = np.array([unit.consequence
+    # Calculate coverage of the rule (ids that are under rule's scope)
+    coverage = evaluator.coverage(rule, x, ids=ids).flatten()
+    # Initialize predictions everywhere with consequence of the rule
+    unit_predictions = np.array([rule.consequence
                                  for _ in range(x.shape[0] if ids is None else ids.shape[0])]).flatten()
+    # Not covered by the rule -> set default label (mean)
     unit_predictions[~coverage] = default
 
     y = y.squeeze()
