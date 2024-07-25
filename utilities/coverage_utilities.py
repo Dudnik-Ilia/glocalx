@@ -44,36 +44,6 @@ def binary_fidelity_old(rule: Unit, x, y, evaluator=None, ids=None, default=np.n
 
     return fidelity
 
-def binary_fidelity(rule: Unit, x, y, evaluator=None, ids=None):
-    """Evaluate the goodness of rule via "1-hamming distance" -> the higher the better
-        Note: Compaired to the old version, here we do not take into account default prediction for all the other samples, which are not covered by the rule
-    Args:
-        rule (Unit): The rule to evaluate.
-        x (numpy.array): The data.
-        y (numpy.array): The labels.
-        evaluator (Evaluator): Optional evaluator to speed-up computation.
-        ids (numpy.array): Unique identifiers to tell each element in @patterns apart.
-    Returns:
-          float: The rule's fidelity_weight
-    """
-    # Calculate coverage of the rule (ids that are under rule's scope)
-    coverage = evaluator.coverage(rule, x, ids=ids).flatten()
-    covered_indices = np.where(coverage)[0]
-    if len(covered_indices) == 0:
-        return 0
-    
-    # Predictions for covered samples (just zeroes or ones)
-    unit_predictions = np.full(len(covered_indices), rule.consequence)
-    
-    y = y.squeeze()
-    covered_y = y[covered_indices]
-
-    # Calculate the fidelity as 1 - Hamming distance for covered samples
-    hamming_distance = hamming(unit_predictions, covered_y)
-    fidelity = 1 - hamming_distance
-
-    return fidelity
-
 
 def coverage_size(rule, x):
     """Evaluate the cardinality of the coverage of rule on x.

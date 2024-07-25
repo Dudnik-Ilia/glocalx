@@ -3,7 +3,7 @@ from abc import abstractmethod
 import numpy as np
 from scipy.spatial.distance import hamming
 
-from utilities.coverage_utilities import binary_fidelity, covers, coverage_matrix, coverage_size
+from utilities.coverage_utilities import binary_fidelity_old, covers, coverage_matrix, coverage_size
 
 
 class Evaluator:
@@ -109,7 +109,7 @@ class DummyEvaluator(Evaluator):
         x, y = vl[:, :-1], vl[:, -1]
         n = x.shape[0]
         default = round(y.mean() + .5)
-        log_likelihood = [binary_fidelity(rule, x, y, default=default, ids=None) for rule in rules]
+        log_likelihood = [binary_fidelity_old(rule, x, y, default=default, ids=None) for rule in rules]
         log_likelihood = np.mean(log_likelihood)
 
         model_complexity = len(rules)
@@ -176,7 +176,7 @@ class DummyEvaluator(Evaluator):
         if self.oracle is not None or y is None:
             y = self.oracle.predict(x).round().squeeze()
 
-        return binary_fidelity(unit, x, y, self, default=default, ids=ids)
+        return binary_fidelity_old(unit, x, y, self, default=default, ids=ids)
 
     def binary_fidelity_model(self, units, x, y, k=1, default=None, ids=None):
         """Evaluate the goodness of unit.

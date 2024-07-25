@@ -39,9 +39,9 @@ info_file = "adult_info"
 glocal_rules = lore_to_glocalx(f"data/lore_rules/{lore_rules_file}.pkl", f"data/info_files/{info_file}.json")
 print(glocal_rules)
 # Create a GLocalX instance for `black_box`
-glocalx = GLocalX(model_ai=black_box)
+glocalx = GLocalX(model_ai=black_box,  name='black_box_explanations')
 # Fit the model, use batch_size=128 for larger datasets
-glocalx = glocalx.fit(glocal_rules, data, batch_size=2, name='black_box_explanations')
+glocalx.fit(glocal_rules, data, batch_size=128,)
 
 # Retrieve global explanations by fidelity
 alpha = 0.5
@@ -51,5 +51,5 @@ alpha = 0.95
 # global_explanations = glocalx.get_fine_boundary_alpha(alpha, data)
 # Retrieve exactly `alpha` global explanations, `alpha/2` per class
 alpha = 10
-global_explanations = glocalx.get_fine_boundary_alpha(alpha, data)
+global_explanations = glocalx.get_fine_boundary_alpha(alpha)
 print(len(global_explanations))
