@@ -134,7 +134,7 @@ class MemEvaluator(Evaluator):
         return fidelity
 
     def binary_fidelity_model(self, rules, x, y, k=1, default=None, ids=None):
-        """Evaluate the goodness of the `rules`.
+        """Calculate the Log-Likelyhood of the `rules`.
         Args:
             rules (Union(list, set)): The rules to evaluate.
             x (numpy.array): The data.
@@ -148,7 +148,9 @@ class MemEvaluator(Evaluator):
         if y is None:
             y = self.oracle.predict(x).squeeze().round()
 
+        # fidelity for each rule
         fidelities = np.array([self.binary_fidelity(rule, x, y) for rule in rules])
+        # True/false mask for each rule whether it covers sample
         coverage = self.coverage(rules, x)
 
         if len(rules) == 0:
@@ -157,11 +159,15 @@ class MemEvaluator(Evaluator):
             rules_consequences = np.array([r.consequence for r in rules])
             # Fast computation for k = 1
             if k == 1:
-                weighted_coverage_scores = coverage * fidelities.reshape(-1, 1)  # Coverage matrix weighted by score
-                # Best score per row (i.e., record)
+                # Coverage matrix (masks), where we have fidelities (if True) and 0 (if False)
+                weighted_coverage_scores = coverage * fidelities.reshape(-1, 1)
+                
+                # Take the best fidelity if several rules apply for the same sample -> get index of best rule
                 best_rule_per_record_idx = weighted_coverage_scores.argmax(axis=0).squeeze()
+                assert len(best_rule_per_record_idx) == len(x)
                 predictions = rules_consequences[best_rule_per_record_idx]
-                # Replace predictions of non-covered records w/ default prediction
+                
+                # Replace predictions of non-covered records with default prediction
                 predictions[coverage.sum(axis=0) == 0] = default
             # Iterative computation
             else:
@@ -171,14 +177,14 @@ class MemEvaluator(Evaluator):
                     if len(record_coverage) == 0:
                         prediction = default
                     else:
-                        companions_0 = record_coverage[rules_consequences[record_coverage] == 0]
-                        companions_1 = record_coverage[rules_consequences[record_coverage] == 1]
-                        scores_0 = fidelities[companions_0]
-                        scores_1 = fidelities[companions_1]
-                        np.argsort_scores_0 = np.flip(np.argsort(fidelities[companions_0])[-k:])
-                        np.argsort_scores_1 = np.flip(np.argsort(fidelities[companions_1])[-k:])
-                        top_scores_0 = scores_0[np.argsort_scores_0]
-                        top_scores_1 = scores_1[np.argsort_scores_1]
+                        rules_for_0 = record_coverage[rules_consequences[record_coverage] == 0]
+                        rules_for_1 = record_coverage[rules_consequences[record_coverage] == 1]
+                        fid_0 = fidelities[rules_for_0]
+                        fid_1 = fidelities[rules_for_1]
+                        argsort_scores_0 = np.flip(np.argsort(fidelities[rules_for_0])[-k:])
+                        argsort_scores_1 = np.flip(np.argsort(fidelities[rules_for_1])[-k:])
+                        top_scores_0 = fid_0[argsort_scores_0]
+                        top_scores_1 = fid_1[argsort_scores_1]
 
                         if len(top_scores_0) == 0 and len(top_scores_1) > 0:
                             prediction = 1
