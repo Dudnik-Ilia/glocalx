@@ -29,7 +29,7 @@ class ProbabilisticCutGLocalX(GLocalX):
         cut_rules = set()
         default = int(y.mean().round())
         # Set ids to None to measure global fidelity_weight
-        fidelities = np.array([self.evaluator.binary_fidelity(rule, x, y, default=default, ids=None)
+        fidelities = np.array([self.evaluator.binary_fidelity(rule, x, y)
                                for rule in conflicting_group_list])
         # maximum fidelities across fidelities array *except* at position i
         masked_max_fidelities = np.array([np.delete(fidelities, i).max() for i in range(n)])

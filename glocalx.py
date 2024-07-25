@@ -203,8 +203,8 @@ class GLocalX:
 
         cut_rules = set()
         default = int(y.mean().round())
-        # Set ids to None to measure global fidelity
-        fidelities = np.array([self.evaluator.binary_fidelity(rule, x, y, default=default, ids=None)
+        # measure global fidelity
+        fidelities = np.array([self.evaluator.binary_fidelity(rule, x, y)
                                for rule in conflicting_group_list])
         dominant_rule = conflicting_group_list[np.argmax(fidelities).item(0)]
         cut_rules.add(dominant_rule)
@@ -248,7 +248,7 @@ class GLocalX:
 
         default = int(y.mean().round())
         # ids set to None to measure global fidelity_weight
-        fidelities = np.array([self.evaluator.binary_fidelity(r, x, y, default=default, ids=None) for r in rules_list])
+        fidelities = np.array([self.evaluator.binary_fidelity(r, x, y) for r in rules_list])
         best_rule = rules_list[np.argmax(fidelities).item(0)]
 
         # Features shared by all
@@ -518,8 +518,8 @@ class GLocalX:
         rules_1 = [r for r in fine_boundary if r.consequence == 1]
 
         if strategy == 'fidelity':
-            values_0 = [evaluator.binary_fidelity(rule, x, y, default=default_y) for rule in rules_0]
-            values_1 = [evaluator.binary_fidelity(rule, x, y, default=default_y) for rule in rules_1]
+            values_0 = [evaluator.binary_fidelity(rule, x, y) for rule in rules_0]
+            values_1 = [evaluator.binary_fidelity(rule, x, y) for rule in rules_1]
         elif strategy == 'coverage':
             values_0 = [evaluator.coverage(rule, x) for rule in rules_0]
             values_1 = [evaluator.coverage(rule, x) for rule in rules_1]

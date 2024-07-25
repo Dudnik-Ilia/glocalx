@@ -110,7 +110,7 @@ class MemEvaluator(Evaluator):
 
         return diff
 
-    def binary_fidelity(self, rule, x, y, default=np.nan, ids=None):
+    def binary_fidelity(self, rule, x, y, ids=None):
         """Evaluate the goodness of rule.
         Args:
             rule (Unit): The unit to evaluate.
@@ -125,36 +125,36 @@ class MemEvaluator(Evaluator):
             y = self.oracle.predict(x).round().squeeze()
 
         if ids is None:
-            self.binary_fidelities[rule] = self.binary_fidelities.get(rule, binary_fidelity(rule, x, y, self,
-                                                                                            default=default, ids=None))
+            if rule not in self.binary_fidelities:
+                self.binary_fidelities[rule] = binary_fidelity(rule, x, y, evaluator=self)
             fidelity = self.binary_fidelities[rule]
         else:
-            fidelity = binary_fidelity(rule, x, y, self, default=default, ids=ids)
+            fidelity = binary_fidelity(rule, x, y, self, ids=ids)
 
         return fidelity
 
-    def binary_fidelity_model(self, units, x, y, k=1, default=None, ids=None):
-        """Evaluate the goodness of the `units`.
+    def binary_fidelity_model(self, rules, x, y, k=1, default=None, ids=None):
+        """Evaluate the goodness of the `rules`.
         Args:
-            units (Union(list, set)): The units to evaluate.
+            rules (Union(list, set)): The rules to evaluate.
             x (numpy.array): The data.
             y (numpy.array): The labels.
             k (int): Number of rules to use in the Laplacian prediction schema.
             default (int): Default prediction for records not covered by the unit.
             ids (numpy.array): Unique identifiers to tell each element in @c apart.
         Returns:
-              float: The units fidelity_weight.
+              float: The rules fidelity_weight.
         """
         if y is None:
             y = self.oracle.predict(x).squeeze().round()
 
-        fidelities = np.array([self.binary_fidelity(rule, x, y, default=default) for rule in units])
-        coverage = self.coverage(units, x)
+        fidelities = np.array([self.binary_fidelity(rule, x, y) for rule in rules])
+        coverage = self.coverage(rules, x)
 
-        if len(units) == 0:
+        if len(rules) == 0:
             predictions = [default] * y.shape[0]
         else:
-            rules_consequences = np.array([r.consequence for r in units])
+            rules_consequences = np.array([r.consequence for r in rules])
             # Fast computation for k = 1
             if k == 1:
                 weighted_coverage_scores = coverage * fidelities.reshape(-1, 1)  # Coverage matrix weighted by score
