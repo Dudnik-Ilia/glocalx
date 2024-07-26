@@ -6,7 +6,7 @@ and MemEvaluator, which stores previously computed measures to speed-up performa
 import numpy as np
 from scipy.spatial.distance import hamming
 
-from logzero import logger
+import logzero
 
 from base_classes.base_evaluators import Evaluator
 from utilities.coverage_utilities import coverage_matrix
@@ -15,7 +15,7 @@ from utilities.coverage_utilities import coverage_matrix
 class MemEvaluator(Evaluator):
     """Memoization Evaluator to avoid evaluating the same measures over the same data."""
 
-    def __init__(self, model_ai, fidelity_weight, complexity_weight):
+    def __init__(self, model_ai, fidelity_weight:float, complexity_weight:float):
         # AI model we try to mimic
         self.model_ai = model_ai
         self.fidelity_weight = fidelity_weight
@@ -23,7 +23,7 @@ class MemEvaluator(Evaluator):
         # For memoization
         self._coverages = dict()
         self._intersecting = dict()
-        self._bics = dict()
+        self._like_compl = dict()
         self._distances = dict()
         self._binary_fidelities = dict()
         # For storing train dataset
@@ -196,18 +196,20 @@ class MemEvaluator(Evaluator):
 
         return fidelity
 
-    def bic(self, rules, test_data=None):
+    def bic(self, rules, test_data=None, logging_msg=''):
         """
         Compute the Bayesian Information Criterion for the given `rules` set.
         Args:
             rules (set): Ruleset.
             test_data (numpy.array): Validation set. If None, then training data is used.
+            logging_msg (str): used for logging purposes
         Returns:
             float: BIC of a model 
         """
         # If already calculated (with training)
-        if tuple(rules) in self._bics and not test_data:
-            model_bic = self._bics[tuple(rules)]
+        if tuple(rules) in self._like_compl and not test_data:
+            log_likelihood, model_complexity = self._like_compl[tuple(rules)]
+            n, m = self._x.shape
         else:
             if not test_data:
                 x, y = self._x, self._y
@@ -216,13 +218,14 @@ class MemEvaluator(Evaluator):
             n, m = x.shape
             default = int(y.mean().round())
             log_likelihood = self.binary_fidelity_model(rules, x, y, default=default)
-
             model_complexity = np.mean([len(r) / m for r in rules])
-            model_bic = - (self.fidelity_weight * log_likelihood - self.complexity_weight * model_complexity / n)
+            # Save
+            self._like_compl[tuple(rules)] = (log_likelihood, model_complexity)
 
-            logger.debug('Log likelihood: ' + str(log_likelihood) + ' | Complexity: ' + str(model_complexity))
+        model_bic = - (self.fidelity_weight * log_likelihood - self.complexity_weight * model_complexity / n)
 
-            self._bics[tuple(rules)] = model_bic
+        # Log calculation or retreival
+        logzero.logger.debug(f"\t{logging_msg}| Log-like: {log_likelihood:.4f} Complexity: {model_complexity:.4f}")
 
         return model_bic
 

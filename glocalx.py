@@ -10,7 +10,8 @@ import pickle
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
-from logzero import logger
+import logging
+import logzero
 
 from sklearn.model_selection import train_test_split
 import tensorflow as tf
@@ -20,6 +21,13 @@ from core.evaluators import MemEvaluator
 from callbacks.callbacks import final_rule_dump_cb as final_rule_dump_callback
 from core.rule_glocalx import Rule
 
+# Format the logger
+BLUE = '\033[94m'
+GREEN = '\033[92m'
+RED = '\033[91m'
+RESET = '\033[0m'
+formatter = logging.Formatter(f'{BLUE}%(asctime)s |{RESET} %(message)s', datefmt='%H:%M:%S')
+logzero.formatter(formatter)
 
 class Predictor:
     """Interface to be implemented by black boxes."""
@@ -174,8 +182,8 @@ class GLocalX:
             bool: accept merge?
         """
         # BIC computation
-        bic_union = self.evaluator.bic(union)
-        bic_merge = self.evaluator.bic(merge)
+        bic_union = self.evaluator.bic(union, logging_msg="Union")
+        bic_merge = self.evaluator.bic(merge, logging_msg="Merge")
         bic_union_validation, bic_merge_validation = bic_union, bic_merge
         
         # By default it is false --> enough to compare on the batch
@@ -184,10 +192,13 @@ class GLocalX:
             union_boundary = set(reduce(lambda b, a: a.union(b), [union] + non_merging_boundary, set()))
             merge_boundary = set(reduce(lambda b, a: a.union(b), [merge] + non_merging_boundary, set()))
 
-            bic_union_global = self.evaluator.bic(union_boundary)
-            bic_merge_global = self.evaluator.bic(merge_boundary)
+            bic_union_global = self.evaluator.bic(union_boundary, logging_msg="Union")
+            bic_merge_global = self.evaluator.bic(merge_boundary, logging_msg="Merge")
 
             bic_union_validation, bic_merge_validation = bic_union_global, bic_merge_global
+
+        to_prefer_msg = "Merge!" if bic_merge_validation <= bic_union_validation else "Union is still better..."
+        logzero.logger.debug(f"{to_prefer_msg}")
 
         return bic_merge_validation <= bic_union_validation
 
@@ -365,25 +376,25 @@ class GLocalX:
         iteration = 1
         merged = True # to start looping
 
+        # Until we successfully find smth to merge + until we have just 2 theories (just small number)
         while len(self.boundary) > 2 and merged:
-            logger.debug(full_name + ' | ************************ Iteration ' + str(iteration) + ' with num of theories: ' + str(boundary_len))
+            logzero.logger.debug(f"{GREEN}{full_name}{RESET} *********** Iter {iteration} with num theories: {boundary_len}")
             merged = False
 
-            # Update distance matrix /// get product = each-each
+            # get product = each w/ each
             candidates_indices = [(i, j) for i, j in product(range(boundary_len), range(boundary_len))
                                   if j > i]
-            logger.debug('Computing distances')
 
             # For all pairs calculate distance
             distances = [(i, j, self.evaluator.distance(self.boundary[i], self.boundary[j]))
                          for i, j in candidates_indices]
 
-            logger.debug(full_name + '|  sorting candidates queue')
             # Distances are sorted in increasing order
             candidates = sorted(distances, key=lambda c: c[2])
             
             # No available candidates or the best (first) rule is not working at all --> stop algorithm
             if len(candidates) == 0 or candidates[0][-1] == 1:
+                logzero.logger.debug(f"{RED}{full_name}{RESET} ***********  No available candidates or the best (first) rule is not working at all --> stop algorithm")
                 break
 
             # Sample a data batch
@@ -391,7 +402,6 @@ class GLocalX:
 
             # Rejections of merge candidates (for logging only)
             rejections_of_merges = 0
-            logger.debug(full_name + ' creating fine boundary')
 
             # Take the union of all rules (which are {rule})
             self.fine_boundary = set(reduce(lambda b, a: a.union(b), self.boundary, set()))
@@ -404,7 +414,7 @@ class GLocalX:
 
                 AB_merge = self.merge(A, B, ids=batch_ids)
                 
-                logger.debug(full_name + ' merged candidate ' + str(rejections_of_merges))
+                logzero.logger.debug(f"Merging try {BLUE}{rejections_of_merges}{RESET}")
 
                 # All other theories except A and B
                 non_merging_boundary = [self.boundary[k] for k in range(boundary_len) if k != i and k != j]
@@ -412,7 +422,6 @@ class GLocalX:
                 # Check if the merge is good
                 if self.accept_merge(AB_union, AB_merge, non_merging_boundary):
                     merged = True
-                    logger.debug(full_name + ' Merged candidate')
 
                     # Boundary update: merged + rest (untouched in this iter)
                     self.boundary = [AB_merge] + non_merging_boundary
@@ -426,12 +435,11 @@ class GLocalX:
                     break
                 else:
                     rejections_of_merges += 1
-                    logger.debug(full_name + "| Rejected merge, cnt: "+ str(rejections_of_merges))
 
             # Callbacks
             if self.callbacks:
                 if iteration % self.callback_step == 0 and merged:
-                    logger.debug(full_name + ' Callbacks... ')
+                    logzero.logger.debug(f"{GREEN}{full_name}{RESET} Callbacks... ")
                     nr_rules_union, nr_rules_merge = len(AB_union), len(AB_merge)
                     coverage_union = self.evaluator.coverage(AB_union)
                     coverage_merge = self.evaluator.coverage(AB_merge)
@@ -460,7 +468,7 @@ class GLocalX:
             iteration += 1
 
         # Final rule dump
-        logger.debug(full_name + ' Dumping ')
+        logzero.logger.debug(f"{GREEN}{full_name}{RESET} Dumping...")
         final_rule_dump_callback(self, merged=False, name=full_name)
 
         # Pickle this instance
