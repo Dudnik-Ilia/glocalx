@@ -66,26 +66,56 @@ class GLocalX:
     fine_boundary: set
 
     def __init__(self, model_ai=None, 
-                global_direction=False, intersecting='coverage',
-                strict_join=True, strict_cut=True,
-                fidelity_weight=1., complexity_weight=1.,
-                callbacks=None, callback_step=5, name=None, pickle_this=False):
-        
+             global_direction=False, intersecting='coverage',
+             strict_join=True, strict_cut=True,
+             fidelity_weight=1., complexity_weight=1.,
+             callbacks=None, callback_step=5, name=None, pickle_this=False):
+        """
+        Creates GlocalX instance
+        Params:
+            model_ai : object, optional
+                The AI model to evaluate and generate rules for. Default is None.
+
+            global_direction : bool, optional
+                Determines whether to use a global direction in rule evaluation. Default is False.
+
+            intersecting : str, optional
+                Specifies the rule intersection method. 
+                - 'coverage': Rules overlap if they cover at least one record in common.
+                - 'polyhedra': Rules overlap if their premises overlap.
+                Default is 'coverage'.
+
+            strict_join : bool, optional
+                If False, joined premises will exclude non-shared features. Default is True.
+
+            strict_cut : bool, optional
+                If True, the dominant rule cuts the non-dominant rules on all features. 
+                If False, the dominant rule cuts the non-dominant rules only on shared features. 
+                Default is True.
+
+            fidelity_weight : float, optional
+            complexity_weight : float, optional
+            callbacks : callable or None, optional
+                A function or list of functions to be called during evaluation steps. Default is None.
+
+            callback_step : int, optional
+                The frequency (in steps) at which callbacks are invoked. Default is 5.
+
+            name : str or None, optional
+                A name for the instance. Default is None.
+
+            pickle_this : bool, optional
+                If True, the instance can be serialized with pickle. Default is False.
+        """
         self.model_ai = model_ai
         self.evaluator = MemEvaluator(model_ai=self.model_ai,
                                       fidelity_weight=fidelity_weight,
                                       complexity_weight=complexity_weight)
 
         self.global_direction = global_direction
-        # If 'coverage', rules are going to overlap if they cover at least one record in common.
-        # If 'polyhedra', rules are going to overlap if their premises do.
         self.intersecting = intersecting
-        # False -> joined premises would NOT contain non-shared features
         self.strict_join = strict_join
-        # If True, the dominant rule cuts the non-dominant rules on all features.
-        # If False, the dominant rule cuts the non-dominant rules only on shared features.
         self.strict_cut = strict_cut
-
         self.fidelity_weight = fidelity_weight
         self.complexity_weight = complexity_weight
         self.callbacks = callbacks
@@ -338,7 +368,7 @@ class GLocalX:
 
         return AB
 
-    def fit(self, rules: list, train_set: np.array, batch_size=128):
+    def fit(self, rules: list, train_set: np.array, batch_size=128) -> None:
         """
         'Train' GLocalX on the given `rules`: given rules, merge them until we find a good (BIC) 
         replace for the model (self.model -- train_set: x,y)

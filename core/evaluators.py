@@ -96,12 +96,13 @@ class MemEvaluator(Evaluator):
         return diff
 
     def binary_fidelity(self, rule, x=None, y=None):
-        """Evaluate the goodness of rule via "1-hamming distance" -> the higher the better
-         Note: Compaired to the old version, here we do not take into account default prediction for all the other samples, which are not covered by the rule
+        """
+        Evaluate the goodness of rule via "1-hamming distance" -> the higher the better. \n
+        Note: Compaired to the old version, here we do not take into account default prediction for all the other samples, which are not covered by the rule
         Args:
             rule (Unit): The unit to evaluate.
             x (numpy.array): The data. Training data is used if None
-            y (numpy.array): The labels.
+            y (numpy.array): The labels. Training data is used if None
         Returns:
               float: The rule's fidelity.
         """
@@ -130,18 +131,25 @@ class MemEvaluator(Evaluator):
 
         return self._binary_fidelities[rule]
 
-    def binary_fidelity_model(self, rules, x, y, k=1, default=None):
-        """Calculate the Log-Likelyhood of the `rules`.
+    def binary_fidelity_model(self, rules, x=None, y=None, k=1, default=None):
+        """Calculate the Log-Likelyhood (fidelity) of the `rules`.
         Args:
             rules (Union(list, set)): The rules to evaluate.
-            x (numpy.array): The data.
-            y (numpy.array): The labels.
+            x (numpy.array): The data. Training data is used if None
+            y (numpy.array): The labels. Training data is used if None
             k (int): Number of rules to use in the Laplacian prediction schema.
             default (int): Default prediction for records not covered by the unit.
         Returns:
-              float: The rules fidelities.
+              float: fidelity of rules as a model.
         """
+        if x is None:
+            # Use training data
+            x, y = self._x, self._y
+        
         y = y.squeeze()
+        
+        if default == None:
+            default = int(y.mean().round())
 
         # fidelity for each rule
         fidelities = np.array([self.binary_fidelity(rule, x, y) for rule in rules])

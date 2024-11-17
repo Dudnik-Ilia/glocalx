@@ -39,7 +39,7 @@ info_file = "adult_info"
 glocal_rules = lore_to_glocalx(f"data/lore_rules/{lore_rules_file}.pkl", f"data/info_files/{info_file}.json")
 print(glocal_rules)
 # Create a GLocalX instance for `black_box`
-glocalx = GLocalX(model_ai=black_box,  name='black_box_explanations')
+glocalx = GLocalX(model_ai=black_box)
 # Fit the model, use batch_size=128 for larger datasets
 glocalx.fit(glocal_rules, data, batch_size=128,)
 
