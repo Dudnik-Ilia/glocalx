@@ -1,0 +1,36 @@
+# Strong effect
+Personal status and sex:
+    - Male (both features with male) indicate strong approval correlation
+    - Female indicate quite strong decline correlation
+Housing status:
+    - Owned house indicate very strongle approval
+    - Rented/Living with parents indicate very strongly decline
+Credit history:
+    - Established but risky credit history --> strong approval
+    - No history --> strong decline
+    - Delays --> strong decline
+    - Paid duly --> strong approval
+Bank account status:
+    - No account in bank --> strong approval
+    - Negative and small amount on account --> strong decline
+Savings account status:
+    - If less that 5k $, then --> strong decline
+    - If more that 5k $ or no account in bank --> strong approve
+
+# Medium effect
+Other credits:
+    - Not a direct correlation should be there (say customer has enough money in deposit, then it is fine if he has loans)
+    - Decent direct correlation: if credits -> decline, if no -> approve
+Age (in years):
+    - Decent correlation with young age (<33) --> decline
+    - Decent correlation with medium age (55>age>33) --> approval
+
+# Small effect
+Installment rate: % of income used for loan payments:
+    - Small correlation with 1% -> approval
+    - Small correlation with 2,3,4% -> decline
+Credit amount (applicant has requested):
+    - No correlations found
+Loan duration (months):
+    - No strong correlation
+    - Some approval correlation with months divisible by 6 (half-years)
