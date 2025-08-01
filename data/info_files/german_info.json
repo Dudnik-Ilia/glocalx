@@ -1,0 +1,20 @@
+{
+    "feature_names": [
+        "Loan duration (months)",
+        "Credit amount (applicant has requested)",
+        "Age (in years)",
+        "Bank account status=Bank account value < 0 $",
+        "Bank account status=Bank account value < 2000 $",
+        "Bank account status=Bank account value > 2000 $",
+        "Bank account status=No account in bank",
+        "Credit history=All credits paid duly at this bank",
+        "Credit history=Delay in paying off in the past",
+        "Credit history=Established but risky credit history",
+        "Credit history=Existing credits paid duly till now",
+        "Credit history=No credits taken"
+    ],
+    "class_values": [
+        0,
+        1
+    ]
+}

@@ -1,0 +1,11 @@
+,Personal status and sex,Housing status,Loan duration (months),Other credits,Installment rate: % of income used for loan payments,Credit history,Bank account status,Age (in years),Credit amount (applicant has requested),Savings account status,class
+2,Male: single,Owned,12,Has no other credits,2,Established but risky credit history,No account in bank,49,21000,Savings < 1000 $,1
+45,Female: divorced/separated/married,Owned,11,Has no other credits,4,Established but risky credit history,No account in bank,35,13900,Savings < 1000 $,1
+18,Female: divorced/separated/married,Living with parents,24,Has no other credits,4,Existing credits paid duly till now,Bank account value < 2000 $,44,125800,Savings < 1000 $,0
+85,Female: divorced/separated/married,Owned,12,Has no other credits,4,Established but risky credit history,No account in bank,29,14100,Savings < 1000 $,1
+15,Female: divorced/separated/married,Owned,24,Has no other credits,4,Existing credits paid duly till now,Bank account value < 0 $,32,12800,Savings 1000-5000 $,0
+4,Male: single,Living with parents,24,Has no other credits,3,Delay in paying off in the past,Bank account value < 0 $,53,48700,Savings < 1000 $,0
+20,Male: single,Owned,9,Has no other credits,4,Established but risky credit history,No account in bank,48,21300,Savings < 1000 $,1
+29,Male: single,Owned,60,Has no other credits,3,Delay in paying off in the past,Bank account value < 0 $,63,68400,Savings < 1000 $,0
+16,Male: single,Owned,24,Has no other credits,4,Established but risky credit history,No account in bank,53,24200,No savings account in bank,1
+9,Male: divorced/separated/married,Owned,30,Has no other credits,4,Established but risky credit history,Bank account value < 2000 $,28,52300,Savings < 1000 $,0
